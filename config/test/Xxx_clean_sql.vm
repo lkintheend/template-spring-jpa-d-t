@@ -1,0 +1,8 @@
+SET REFERENTIAL_INTEGRITY FALSE
+
+#foreach( $entity in $selectedEntities )
+## delete from ${entity.databaseSchema}.${entity.databaseTable}
+delete from ${entity.databaseTable}
+#end
+
+SET REFERENTIAL_INTEGRITY TRUE

@@ -1,0 +1,76 @@
+## Include
+#parse("include/var_entity.vm")
+## Use macro resolve header
+#package($SRC)
+## use macro for feed $haveCriteria
+#haveCriteria()
+## Generate criteria file only if needed
+#if($haveCriteria)
+#set($packageWithDot = ${ROOT_PKG})
+#set($packageWithSlash = $packageWithDot.replace(".", "/"))
+$generator.generate($target.entityName ,  "${criteriaClass}.java", "${SRC}/${packageWithSlash}/service/criteria" , "java/service/criteria/Xxx_Criteria_java.vm"  )
+#end
+#if($haveCriteria)
+
+import java.util.List;
+
+import javax.transaction.Transactional;
+#end
+import ${pack_entity}.${entityClass};
+#if($compositeKey)
+import ${pack_entity}.${entityKeyClass};
+#end
+import ${pack_repository}.${repositoryClass};
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+@Transactional
+public class $serviceClass implements $serviceInterface {
+
+	@Autowired
+	private $repositoryClass $repositoryInstance;
+
+	@Override
+	public $entityClass getOne($keyArgsListWrapperType) {
+		return ${repositoryInstance}.getOne($keyArgsList);
+	}
+
+	@Override
+	public Boolean delete($keyArgsListWrapperType) {
+		if (${repositoryInstance}.getOne($keyArgsList) != null) {
+			${repositoryInstance}.deleteById($keyArgsList);
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	public $entityClass create($entityClass $entityInstance) {
+		return ${repositoryInstance}.save($entityInstance);
+	}
+
+	@Override
+	public $entityClass update($entityClass ${entityInstance}ToUpdate) {
+		$entityClass ${entityInstance} = ${repositoryInstance}.getOne(${entityInstance}ToUpdate.getId());
+		#foreach($field in $entity.nonKeyAttributes)
+		if(${entityInstance}ToUpdate.${field.getter}() !=null) {
+			
+		}
+		#end
+		return ${repositoryInstance}.save($entityInstance);
+	}
+
+	@Override
+	public Boolean exist($entityClass $entityInstance) {
+
+		return ${repositoryInstance}.existsById(${entityInstance}.getId());
+
+	}
+
+	@Override
+	public List<$entityClass> findAll() {
+		return ${repositoryInstance}.findAll();
+	}
+
+}

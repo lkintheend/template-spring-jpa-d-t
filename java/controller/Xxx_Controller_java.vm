@@ -1,0 +1,157 @@
+## Include
+#parse("include/var_entity.vm")
+## Use macro resolve header
+#package($SRC)
+## use macro for feed $haveCriteria
+#haveCriteria()
+## Resolve mapping path, e.g. "{customerCode}/{bookId}"
+#set($mappingPath = '')
+#foreach($field in $entity.keyAttributes)
+#if($foreach.count > 1)
+#set($mappingPath = "${mappingPath}/")
+#end
+#set($mappingPath = "${mappingPath}{$field.name}")
+#end
+## Resolve path variable, e.g. "@PathParam("customerCode") String customerCode, @PathParam("bookId") Integer bookId"
+#set($pathVariable = '')
+#foreach( $field in $entity.keyAttributes )
+#if($foreach.count > 1)
+#set($pathVariable = "${pathVariable}, ")
+#end
+#set($pathVariable = "${pathVariable}@PathVariable(""${field.name}"") ${field.type} $field.name" )
+#end
+## Resolve id for logger, e.g. "{customerCode}/{bookId}"
+#set($idForLogger = '')
+#foreach($field in $entity.keyAttributes)
+#set($idForLogger = "${idForLogger}/$field.name")
+#end
+
+import ${pack_assembler}.$assemblerClass;
+import ${pack_resource}.$resourceClass;
+import ${pack_entity}.$entityClass;
+import ${pack_service}.$serviceClass;
+#if($haveCriteria)
+import ${pack_criteria}.$criteriaClass;
+#end
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.PagedResources;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Rest controller which produce Hal+json content (including hateoas metadata).
+ * $author
+ */
+@RestController
+@RequestMapping(value = "/$entityInstance", produces = "application/hal+json")
+public class $controllerClass {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(${controllerClass}.class);
+
+	private static final String NOT_FOUND ="$entityClass not found";
+
+	@Autowired
+	private $serviceClass ${serviceInstance};
+
+	@Autowired
+	private PagedResourcesAssembler<$entityClass> pageAssember;
+
+	private $assemblerClass $assemblerInstance = new $assemblerClass();
+
+#if($haveCriteria)
+	@GetMapping
+	public ResponseEntity<PagedResources<$resourceClass>> search(Pageable pageable, $criteriaClass criteria) {
+		LOGGER.info("${entityClass}s search [pageable={}|$criteriaClass={}", pageable, criteria);
+		final Page<$entityClass> result = ${serviceInstance}.search(pageable, criteria);
+		LOGGER.info("Found {} ${entityInstance}s !", result.getSize());
+		return new ResponseEntity<>(pageAssember.toResource(result, $assemblerInstance), HttpStatus.OK);
+	}
+#else
+	@GetMapping
+	public ResponseEntity<PagedResources<$resourceClass>> search(Pageable pageable) {
+		LOGGER.info("${entityClass}s search [pageable={}", pageable);
+		final Page<$entityClass> result = ${serviceInstance}.search(pageable);
+		LOGGER.info("Found {} ${entityInstance}s !", result.getSize());
+		return new ResponseEntity<>(pageAssember.toResource(result, $assemblerInstance), HttpStatus.OK);
+	}
+#end
+
+	@GetMapping("$mappingPath")
+	public ResponseEntity<$resourceClass> get($pathVariable) {
+		LOGGER.info("$entityClass get with id {}", resolveIdForLogger($keyArgsList));
+		final $entityClass $entityInstance = ${serviceInstance}.get($keyArgsList);
+		if ($entityInstance == null) {
+			LOGGER.info(NOT_FOUND);
+			return new ResponseEntity<>(($resourceClass) null, HttpStatus.NOT_FOUND);
+		}
+		LOGGER.info("$entityClass found : {}", $entityInstance);
+		final $resourceClass $resourceInstance = ${assemblerInstance}.toResource($entityInstance);
+		return new ResponseEntity<>($resourceInstance, HttpStatus.OK);
+	}
+
+	@PostMapping(consumes = "application/json")
+	public ResponseEntity<$resourceClass> create(@RequestBody $entityClass $entityInstance) {
+		LOGGER.info("$entityClass creation request : {}", $entityInstance);
+		if (${serviceInstance}.exist($entityInstance)) {
+			LOGGER.info("$entityClass already exist ! : {}", $entityInstance);
+			return new ResponseEntity<>(($resourceClass) null, HttpStatus.CONFLICT);
+		} else {
+			final $entityClass created = ${serviceInstance}.create($entityInstance);
+			LOGGER.info("Created $entityInstance {}", created);
+			return new ResponseEntity<>(${assemblerInstance}.toResource(created), HttpStatus.OK);
+		}
+	}
+
+	@PutMapping(value = "$mappingPath", consumes = "application/json")
+	public ResponseEntity<Void> update($pathVariable, @RequestBody $entityClass $entityInstance) {
+		LOGGER.info("$entityClass update request [id={} | $entityInstance={}}", resolveIdForLogger($keyArgsList), $entityInstance);
+		// force the id (use the id provided by the URL)
+#foreach($field in $entity.keyAttributes)
+		${entityInstance}.${field.setter}($field.name);
+#end
+		if (${serviceInstance}.save($entityInstance)) {
+			LOGGER.info("$entityClass succesfully updated");
+			return new ResponseEntity<>(HttpStatus.OK);
+		} else {
+			LOGGER.info(NOT_FOUND);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+	}
+
+	@DeleteMapping("$mappingPath")
+	public ResponseEntity<Void> delete($pathVariable) {
+		LOGGER.info("$entityClass deletion request : {}", resolveIdForLogger($keyArgsList));
+		if (${serviceInstance}.delete($keyArgsList)) {
+			LOGGER.info("$entityClass succesfully deleted");
+			return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+		} else {
+			LOGGER.info(NOT_FOUND);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+	}
+
+	private String resolveIdForLogger($keyArgsListWrapperType) {
+		final StringBuilder ids = new StringBuilder();
+#foreach($field in $entity.keyAttributes)
+#if($foreach.count > 1)
+		ids.append("/");
+#end
+		ids.append(String.valueOf($field.name));
+#end
+		return ids.toString();
+	}
+
+}

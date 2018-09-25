@@ -1,0 +1,15 @@
+## --- Package variable init
+## Controller based package
+#set($pack_controller         = "${ROOT_PKG}.controller")
+#set($pack_assembler          = "${pack_controller}.assembler")
+#set($pack_resource           = "${pack_controller}.resource")
+#set($pack_mapper	          = "${pack_controller}.mapper")
+## Entity package
+#set($pack_entity        	  = "${ROOT_PKG}.entity")
+## Repository package
+#set($pack_repository         = "${ROOT_PKG}.repository")
+## Service package
+#set($pack_service            = "${ROOT_PKG}.service")
+#set($pack_criteria           = "${pack_service}.criteria")
+## Author
+#set($author    			  = "@author Telosys (http://www.telosys.org/) version ${generator.version}")

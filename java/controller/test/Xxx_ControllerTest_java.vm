@@ -1,0 +1,370 @@
+## Include
+#parse("include/var_entity.vm")
+## Use macro resolve header
+#package($TEST_SRC)
+## use macro for feed $haveCriteria
+#haveCriteria()
+import static org.assertj.core.api.Assertions.assertThat;
+
+#set($haveBigDecimal	= false)
+#foreach($field in $entity.nonKeyAttributes)
+#if($field.type == 'BigDecimal')
+#set($haveBigDecimal	= true)
+#end
+#end
+#if($haveBigDecimal)
+import org.assertj.core.util.BigDecimalComparator;
+#end
+import ${pack_resource}.$resourceClass;
+import ${pack_entity}.$entityClass;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.PagedResources;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.RequestEntity;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
+import org.springframework.test.context.jdbc.SqlGroup;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+## Use macro resolve imports
+#imports($entity.attributes false)
+
+// Junit specific runner
+@RunWith(SpringJUnit4ClassRunner.class)
+// Declare as spring boot test and define the port according to properties in
+// src/test/resources/application.properties
+@SpringBootTest(webEnvironment = WebEnvironment.DEFINED_PORT)
+// Ensure all are clean between two method test execution
+@SqlGroup({ @Sql(executionPhase = ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:clean.sql") })
+public class ${controllerClass}Test {
+
+	@Autowired
+	private TestRestTemplate restTemplate;
+## Resolve mock argument for pk field
+#set($mockArgumentPk = '')
+#set($mockArgumentPkLoop = '')
+#set($mockParamsPk = '')
+#set($path='')
+#set($pathForNotFound='')
+#foreach($field in $entity.KeyAttributes)
+#if($foreach.count > 1)
+#set($mockArgumentPk = "${mockArgumentPk},")
+#set($mockParamsPk = "${mockParamsPk},")
+#set($mockArgumentPkLoop = "${mockArgumentPkLoop}, ")
+#end
+#mockValue($field)
+#set($mockArgumentPk = "${mockArgumentPk}$mockValue ")
+## Resolve mock argument for non pk field
+#if(${field.type} == 'Short')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}new Short((short)i)")
+#elseif(${field.type} == 'Integer')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}new Integer((int)i)")
+#elseif(${field.type} == 'Long')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}new Long((long)i)")
+#elseif(${field.type} == 'Float')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}new Float((float)i)")
+#elseif(${field.type} == 'Double')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}new Double((double)i)")
+#elseif(${field.type} == 'BigDecimal')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}new BigDecimal(i)")
+#elseif(${field.type} == 'Boolean')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}true")
+#elseif(${field.type} == 'Date')
+#set($mockArgumentPkLoop =  "${mockArgumentPkLoop}new Date()")
+#elseif(${field.type} == 'String')
+#set($mockArgumentPkLoop = "${mockArgumentPkLoop}String.valueOf(i)")
+#else
+#set($mockArgumentPkLoop = "${mockArgumentPkLoop}i")
+#end
+#set($mockParamsPk = "${mockParamsPk}$field.type ${field.name}")
+#set($path = "${path}/1" )
+#set($pathForNotFound = "${pathForNotFound}/999" )
+#end
+##
+#set($fullPath="/${entityInstance}${path}")
+#set($fullPathForNotFound="/${entityInstance}${pathForNotFound}")
+##
+#set($mockArgument = '')
+#set($mockArgumentloop = '')
+#set($mockParams = '')
+#foreach($field in $entity.nonKeyAttributes)
+## Use macro resolve mock value
+#mockValue($field)
+	private static final $field.type $fn.toUpperCase($field.name) = $mockValue;
+#if($field.type == 'Date')
+	#set($mockArgumentloop = "${mockArgumentloop}, new Date()")
+#elseif($field.type == 'BigDecimal')
+	#set($mockArgumentloop = "${mockArgumentloop},${fn.toUpperCase($field.name)}.add(new BigDecimal(i))")
+#elseif($field.type == 'Boolean')
+	#set($mockArgumentloop = "${mockArgumentloop},!${fn.toUpperCase($field.name)}")
+#elseif($field.type == 'Short')
+	#set($mockArgumentloop = "${mockArgumentloop},new Short((short) ($fn.toUpperCase($field.name) + i))")
+#elseif($field.type == 'String')
+	#set($mockArgumentloop = "${mockArgumentloop},String.valueOf(i)")
+#else
+	#set($mockArgumentloop = "${mockArgumentloop},$fn.toUpperCase($field.name) + i")
+#end
+#set($mockArgument = "${mockArgument}, $fn.toUpperCase($field.name)")
+#set($mockParams = "${mockParams}, $field.type ${field.name}")
+#end 
+
+	@Test
+	public void create${entityClass}Test() {
+		// Create an ${entityInstance}
+		${entityClass} ${entityInstance} = createMocK${entityClass}(${mockArgumentPk}${mockArgument});
+		// Recover this ${entityInstance}
+		ResponseEntity<${resourceClass}> result = this.restTemplate.getForEntity("${fullPath}", ${resourceClass}.class);
+		// The response can't be null
+		assertThat(result).isNotNull();
+		// The status code must be OK
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+		// Response body must not be null
+		assertThat(result.getBody()).isNotNull();
+		// Assert the Hateoas self link
+		Link link = new Link("http://localhost:9999${fullPath}", Link.REL_SELF);
+		assertThat(result.getBody().getId()).isEqualTo(link);
+#foreach($field in $entity.nonKeyAttributes)
+#if($field.type != 'Date')
+#if($field.type == 'BigDecimal')
+		BigDecimalComparator comparator = new BigDecimalComparator();
+		comparator.compare(result.getBody().getPrice(), $fn.toUpperCase($field.name));
+		assertThat(true).isEqualTo(comparator.compare(result.getBody().getPrice(), $fn.toUpperCase($field.name)) == 0);
+#else
+		assertThat(result.getBody().${field.getter}()).isEqualTo($fn.toUpperCase($field.name));
+#end
+#end
+#end 
+		// Try to create the same ${entityInstance}, must return a CONFLICT status code
+		result = this.restTemplate.postForEntity("/${entityInstance}", ${entityInstance}, ${resourceClass}.class);
+		// The reponse can't be null
+		assertThat(result).isNotNull();
+		// The status code must be OK
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+		// Response body must not be null
+		assertThat(result.getBody()).isNull();
+	}
+
+	@Test
+	public void updateTest() {
+		// Create an ${entityInstance} and assert field
+		${entityClass} ${entityInstance} = createMocK${entityClass}($mockArgumentPk $mockArgument);
+		// Recover this ${entityInstance}
+		ResponseEntity<${resourceClass}> result = this.restTemplate.getForEntity("${fullPath}", ${resourceClass}.class);
+		// The reponse can't be null
+		assertThat(result).isNotNull();
+		// The status code must be OK
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+		// Response body must not be null
+		assertThat(result.getBody()).isNotNull();
+		// Assert the Hateoas self link
+		Link link = new Link("http://localhost:9999${fullPath}", Link.REL_SELF);
+		assertThat(result.getBody().getId()).isEqualTo(link);
+#foreach($field in $entity.nonKeyAttributes)
+#if($field.type != 'Date')
+#if($field.type == 'BigDecimal')
+		BigDecimalComparator comparator = new BigDecimalComparator();
+		comparator.compare(result.getBody().getPrice(), $fn.toUpperCase($field.name));
+		assertThat(true).isEqualTo(comparator.compare(result.getBody().getPrice(), $fn.toUpperCase($field.name)) == 0);
+#else
+		assertThat(result.getBody().${field.getter}()).isEqualTo($fn.toUpperCase($field.name));
+#end
+#end
+#end
+
+		// Change field value
+#foreach($field in $entity.nonKeyAttributes)
+## Use macro resolve mock value
+#mockNewValue($field)
+#if($field.type != 'Date')
+		${entityInstance}.set$fn.capitalize($field.name)($mockNewValue);
+#end
+#end 
+		// Process update
+		RequestEntity<${entityClass}> request = new RequestEntity<${entityClass}>(${entityInstance}, HttpMethod.PUT, null);
+		ResponseEntity<Void> resultUpdate = this.restTemplate.exchange("${fullPath}", HttpMethod.PUT, request,
+				getTypeRefVoid());
+		// The response can't be null
+		assertThat(resultUpdate).isNotNull();
+		// The status code must be OK
+		assertThat(resultUpdate.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		// Recover the ${entityInstance} and ensure field are correct
+		result = this.restTemplate.getForEntity("${fullPath}", ${resourceClass}.class);
+		// The reponse can't be null
+		assertThat(result).isNotNull();
+		// The status code must be OK
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+		// Response body must not be null
+		assertThat(result.getBody()).isNotNull();
+		// Assert the Hateoas self link
+		link = new Link("http://localhost:9999${fullPath}", Link.REL_SELF);
+		assertThat(result.getBody().getId()).isEqualTo(link);
+#foreach($field in $entity.nonKeyAttributes)
+## Use macro resolve mock value
+#mockNewValue($field)
+#if($field.type != 'Date')
+#if($field.type == 'BigDecimal')
+		comparator.compare(result.getBody().getPrice(), $mockNewValue);
+		assertThat(true).isEqualTo(comparator.compare(result.getBody().getPrice(), $mockNewValue) == 0);
+#else
+		assertThat(result.getBody().${field.getter}()).isEqualTo($mockNewValue);
+#end
+#end
+#end 
+	}
+
+	@Test
+	public void updateNotFoundTest() {
+		// Process update
+		RequestEntity<${entityClass}> request = new RequestEntity<${entityClass}>(new ${entityClass}(), HttpMethod.PUT, null);
+		ResponseEntity<Void> resultUpdate = this.restTemplate.exchange("$fullPathForNotFound", HttpMethod.PUT, request,
+				getTypeRefVoid());
+		// The response can't be null
+		assertThat(resultUpdate).isNotNull();
+		// The status code must be NOT_FOUND
+		assertThat(resultUpdate.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	public void deleteTest() {
+		// Create an ${entityInstance}
+		createMocK${entityClass}($mockArgumentPk $mockArgument);
+		// Recover this ${entityInstance} and test if all is ok
+		ResponseEntity<${resourceClass}> result = this.restTemplate.getForEntity("${fullPath}", ${resourceClass}.class);
+		// The reponse can't be null
+		assertThat(result).isNotNull();
+		// The status code must be OK
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		// Delete the ${entityInstance}
+		RequestEntity<${entityClass}> request = new RequestEntity<${entityClass}>(new ${entityClass}(), HttpMethod.DELETE, null);
+		ResponseEntity<Void> resultDelete = this.restTemplate.exchange("${fullPath}", HttpMethod.DELETE, request,
+				getTypeRefVoid());
+		// The response can't be null
+		assertThat(resultDelete).isNotNull();
+		// The status code must be NOT_CONTENT
+		assertThat(resultDelete.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+		// Try to recover the ${entityInstance} and ensure it's don't exist
+		// Recover this ${entityInstance} and test if all is ok
+		result = this.restTemplate.getForEntity("${fullPath}", ${resourceClass}.class);
+		// The reponse can't be null
+		assertThat(result).isNotNull();
+		// The status code must be NOT_FOUND
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	public void deleteNotFound() {
+		// Delete the ${entityInstance}
+		RequestEntity<${entityClass}> request = new RequestEntity<${entityClass}>(new ${entityClass}(), HttpMethod.DELETE, null);
+		ResponseEntity<Void> resultDelete = this.restTemplate.exchange("$fullPathForNotFound", HttpMethod.DELETE, request,
+				getTypeRefVoid());
+		// The response can't be null
+		assertThat(resultDelete).isNotNull();
+		// The status code must be NOT_FOUND
+		assertThat(resultDelete.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	public void get${entityClass}sTest() {
+		// First call assert no element
+		ResponseEntity<PagedResources<${resourceClass}>> result = this.search("/${entityInstance}");
+		// The reponse can't be null
+		assertThat(result).isNotNull();
+		// The status code must be OK
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+		// Response body must not be null
+		PagedResources<${resourceClass}> page = result.getBody();
+		assertThat(page).isNotNull();
+		assertThat(page.getMetadata()).isNotNull();
+		assertThat(page.getMetadata().getTotalElements()).isEqualTo(0);
+		assertThat(page.getMetadata().getTotalPages()).isEqualTo(0);
+		// By default page size is 20
+		assertThat(page.getMetadata().getSize()).isEqualTo(20);
+
+		// Insert 21 ${entityInstance}
+		for (int i = 1; i < 22; i++) {
+			createMocK${entityClass}(${mockArgumentPkLoop}${mockArgumentloop});
+		}
+		result = this.search("/${entityInstance}");
+		// Response body must not be null
+		page = result.getBody();
+		assertThat(page).isNotNull();
+		assertThat(page.getMetadata().getTotalElements()).isEqualTo(21);
+		assertThat(page.getMetadata().getTotalPages()).isEqualTo(2);
+
+		// Change the number of element per page and assert the page number
+		result = this.search("/${entityInstance}?size=3");
+		// Response body must not be null
+		page = result.getBody();
+		assertThat(page).isNotNull();
+		assertThat(page.getMetadata().getTotalElements()).isEqualTo(21);
+		assertThat(page.getMetadata().getTotalPages()).isEqualTo(7);
+	}
+
+#if($haveCriteria)
+	@Test
+	public void get${entityClass}sTestFilter() {
+		// Create an ${entityInstance}
+		${entityClass} ${entityInstance} = createMocK${entityClass}(${mockArgumentPk}${mockArgument});
+		RequestEntity<${entityClass}> request = null;
+		ResponseEntity<PagedResources<${resourceClass}>> result = null;
+		PagedResources<${resourceClass}> page = null;
+#foreach($field in $entity.nonKeyAttributes)
+#if($field.type == 'String')
+		// Test $field.name filter
+		// Set the value on entity and update
+		${entityInstance}.set$fn.capitalize($field.name)("c");
+		// Process update
+		request = new RequestEntity<${entityClass}>(${entityInstance}, HttpMethod.PUT, null);
+		this.restTemplate.exchange("${fullPath}", HttpMethod.PUT, request, getTypeRefVoid());
+		// Test $field.name filter
+		result = this.search("/${entityInstance}?size=20&$field.name=c");
+		// Response body must not be null
+		page = result.getBody();
+		assertThat(page).isNotNull();
+		assertThat(page.getMetadata().getTotalElements()).isEqualTo(1);
+		assertThat(page.getMetadata().getTotalPages()).isEqualTo(1);
+		for (${resourceClass} ${resourceInstance} : page.getContent()) {
+			assertThat(${resourceInstance}.get$fn.capitalize($field.name)()).startsWith("c");
+		}
+#end
+#end 
+	}
+#end
+
+	private ${entityClass} createMocK${entityClass}(${mockParamsPk}${mockParams}) {
+		${entityClass} ${entityInstance}Mock = new ${entityClass}();
+#foreach($field in $entity.KeyAttributes)
+		${entityInstance}Mock.set${fn.capitalize($field.name)}($field.name);
+#end
+#foreach($field in $entity.nonKeyAttributes)
+		${entityInstance}Mock.set${fn.capitalize($field.name)}($field.name);
+#end 
+		this.restTemplate.postForLocation("/${entityInstance}", ${entityInstance}Mock);
+		return ${entityInstance}Mock;
+	}
+
+	private ResponseEntity<PagedResources<${resourceClass}>> search(String uri) {
+		return this.restTemplate.exchange(uri, HttpMethod.GET, null, getTypeRef());
+	}
+
+	private ParameterizedTypeReference<PagedResources<${resourceClass}>> getTypeRef() {
+		return new ParameterizedTypeReference<PagedResources<${resourceClass}>>() {
+		};
+	}
+
+	private ParameterizedTypeReference<Void> getTypeRefVoid() {
+		return new ParameterizedTypeReference<Void>() {
+		};
+	}
+}

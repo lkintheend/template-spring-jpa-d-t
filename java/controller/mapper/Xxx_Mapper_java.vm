@@ -1,0 +1,30 @@
+## Include
+#parse("include/var_entity.vm")
+## Use macro resolve header
+#package($SRC)
+
+import java.util.List;
+
+import ${pack_resource}.$resourceClass;
+import ${pack_entity}.$entityClass;
+
+import fr.xebia.extras.selma.Mapper;
+
+/**
+ * $resourceClass's Mapper declaration using selma.
+ * $author
+ */
+@Mapper(withIgnoreFields = { "id", "links" })
+public interface $mapperClass {
+
+	// This will build a fresh new $resourceClass with in infos
+	$resourceClass map($entityClass in);
+
+	$entityClass map($resourceClass in);
+
+	// This will update the given Author
+	$entityClass map($resourceClass in, $entityClass out);
+
+	// this will build a fresh list of $resourceClass with in infos
+	List<$resourceClass> map(List<$entityClass> in);
+}

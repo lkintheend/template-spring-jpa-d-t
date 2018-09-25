@@ -1,0 +1,49 @@
+## Include
+#parse("include/var_entity.vm")
+## Use macro resolve header
+#package($SRC)
+
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
+
+import ${pack_controller}.$controllerClass;
+import ${pack_mapper}.$mapperClass;
+import ${pack_resource}.$resourceClass;
+import ${pack_entity}.$entityClass;
+import org.springframework.hateoas.mvc.ResourceAssemblerSupport;
+
+import fr.xebia.extras.selma.Selma;
+
+/**
+ * Hateoas assembler class which make mapping and adding hateoas links.
+ * $author
+ */
+public class $assemblerClass extends ResourceAssemblerSupport<$entityClass, $resourceClass> {
+
+	// declare the mapper
+	private $mapperClass $mapperInstance;
+
+	public $assemblerClass() {
+		super(${controllerClass}.class, ${resourceClass}.class);
+		$mapperInstance = Selma.builder(${mapperClass}.class).build();
+	}
+
+	@Override
+	public $resourceClass toResource($entityClass $entityInstance) {
+		// Basic mapping
+		final $resourceClass resource = ${mapperInstance}.map($entityInstance);
+#foreach($field in $entity.attributes)
+#if($field.name == 'id')
+		resource.setId(${entityInstance}.getId());
+#end
+#end
+
+#set($linkPart = '')
+#foreach($field in $entity.keyAttributes)
+#set($linkPart = "${linkPart}.slash(${entityInstance}.${field.getter}())")
+#end
+		// adding hateoas links
+		resource.add(linkTo(${controllerClass}.class)${linkPart}.withSelfRel());
+		return resource;
+	}
+
+}

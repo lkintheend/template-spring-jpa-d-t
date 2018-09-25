@@ -1,0 +1,28 @@
+# Datasource configuration
+#if ( $databases.hasDatabase( $model.databaseId ) )
+#set($database = $databases.getDatabase( $model.databaseId )) 
+${SHARP} Database configuration  
+spring.datasource.url=$database.jdbcUrl
+spring.datasource.username=$database.user 
+spring.datasource.password=$database.password
+spring.datasource.driver-class-name=$database.driverClass
+spring.jpa.properties.hibernate.dialect = $database.dialect
+#else
+${SHARP} Example of database configuration : H2 is used as example
+${SHARP}
+${SHARP} JDBC driver class 
+spring.datasource.driver-class-name=org.h2.Driver
+${SHARP} JDBC URL : H2 database 'in memory' with initialization script for tables creation
+spring.datasource.url=jdbc:h2:mem:test 
+${SHARP} User name
+spring.datasource.username=sa 
+${SHARP} User password
+spring.datasource.password=sa
+# Allows Hibernate to generate SQL optimized for a particular DBMS
+spring.jpa.properties.hibernate.dialect = org.hibernate.dialect.H2Dialect
+#end
+
+
+#Logging configuration
+logging.level.root=info		
+logging.pattern.console=%d{dd-MM-yyyy HH:mm:ss.SSS} %logger.%M - %msg%n

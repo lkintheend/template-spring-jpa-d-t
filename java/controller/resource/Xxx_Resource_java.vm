@@ -1,0 +1,42 @@
+## Include
+#parse("include/var_entity.vm")
+## Use macro resolve header
+#package($SRC)
+
+import org.springframework.hateoas.ResourceSupport;
+## Use macro resolve imports
+#imports($entity.attributes false)
+
+/**
+ * Hateoas resource associated with ${entityClass}.
+ * $author
+ */
+public class $resourceClass extends ResourceSupport {
+
+#foreach($field in $entity.attributes)
+## Because id is reserved in parent class !
+#if($field.name == 'id')
+	// Because id is reserved in parent class, we can't override the getter.
+	@SuppressWarnings("unused")
+#end
+    private $field.type $field.name;  
+#end
+
+	// Constructor
+	public $resourceClass() {
+		// Needed empty constructor for serialization
+	}
+
+#foreach($field in $entity.attributes)
+#if ($field.getter && $field.name != 'id')    
+	public $field.type ${field.getter}() {
+		return this.$field.name;
+	}
+#end
+#if ($field.setter)    
+	public void ${field.setter}($field.type $field.name) {
+		this.$field.name = $field.name;
+	}
+#end
+#end
+}
