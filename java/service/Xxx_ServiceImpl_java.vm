@@ -52,20 +52,22 @@ public class $serviceClass implements $serviceInterface {
 
 	@Override
 	public $entityClass update($entityClass ${entityInstance}ToUpdate) {
-		$entityClass ${entityInstance} = ${repositoryInstance}.getOne(${entityInstance}ToUpdate.getId());
-		#foreach($field in $entity.nonKeyAttributes)
-		if(${entityInstance}ToUpdate.${field.getter}() !=null) {
-			
-		}
-		#end
+		//$entityClass ${entityInstance} = ${repositoryInstance}.getOne(${entityInstance}ToUpdate.getId());
+		//#foreach($field in $entity.nonKeyAttributes)
+		//if(${entityInstance}ToUpdate.${field.getter}() !=null) {
+		//	
+		//}
+		//#end
 		return ${repositoryInstance}.save($entityInstance);
 	}
 
 	@Override
 	public Boolean exist($entityClass $entityInstance) {
-
-		return ${repositoryInstance}.existsById(${entityInstance}.getId());
-
+		#foreach($attribute in $entity.attributes)
+		#if( $attribute.isKeyElement() )
+		return ${repositoryInstance}.existsById(${entityInstance}.get${attribute.name}());
+		#end
+		#end
 	}
 
 	@Override
@@ -74,3 +76,4 @@ public class $serviceClass implements $serviceInterface {
 	}
 
 }
+
