@@ -10,12 +10,12 @@
 #set($packageWithSlash = $packageWithDot.replace(".", "/"))
 $generator.generate($target.entityName ,  "${criteriaClass}.java", "${SRC}/${packageWithSlash}/service/criteria" , "java/service/criteria/Xxx_Criteria_java.vm"  )
 #end
-#if($haveCriteria)
+
 
 import java.util.List;
 
 import javax.transaction.Transactional;
-#end
+
 import ${pack_entity}.${entityClass};
 #if($compositeKey)
 import ${pack_entity}.${entityKeyClass};
@@ -54,7 +54,7 @@ public class $serviceClass implements $serviceInterface {
 	public $entityClass update($entityClass ${entityInstance}ToUpdate) {
 		#foreach($attribute in $entity.attributes)
 		#if( $attribute.isKeyElement() )
-		$entityClass ${entityInstance} = ${repositoryInstance}.getOne(${entityInstance}ToUpdate.get${attribute.name}());
+		$entityClass ${entityInstance} = ${repositoryInstance}.getOne(${entityInstance}ToUpdate.${attribute.getter}());
 		#end
 		#end
 		
@@ -70,7 +70,7 @@ public class $serviceClass implements $serviceInterface {
 	public Boolean exist($entityClass $entityInstance) {
 		#foreach($attribute in $entity.attributes)
 		#if( $attribute.isKeyElement() )
-		return ${repositoryInstance}.existsById(${entityInstance}.get${attribute.name}());
+		return ${repositoryInstance}.existsById(${entityInstance}.${attribute.getter}());
 		#end
 		#end
 	}
