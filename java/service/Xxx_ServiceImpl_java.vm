@@ -33,7 +33,7 @@ public class $serviceClass implements $serviceInterface {
 
 	@Override
 	public $entityClass getOne($keyArgsListWrapperType) {
-		return ${repositoryInstance}.getOne($keyArgsList);
+		return ${repositoryInstance}.findById($keyArgsList).get();
 	}
 
 	@Override
@@ -81,4 +81,5 @@ public class $serviceClass implements $serviceInterface {
 	}
 
 }
+
 
