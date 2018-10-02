@@ -10,15 +10,16 @@ import java.util.List;
 
 public interface $serviceInterface {
 
-	public $entityClass getOne($keyArgsListWrapperType);
+	$entityClass getOne($keyArgsListWrapperType);
 
-	public List<$entityClass> findAll();
+	List<$entityClass> findAll();
 
-	public Boolean delete($keyArgsListWrapperType);
+	Boolean delete($keyArgsListWrapperType);
 
-	public $entityClass create($entityClass $entityInstance);
+	$entityClass create($entityClass $entityInstance);
 
-	public $entityClass update($entityClass $entityInstance);
+	$entityClass update($entityClass $entityInstance);
 
-	public Boolean exist($entityClass $entityInstance);
+	Boolean exist($entityClass $entityInstance);
 }
+
