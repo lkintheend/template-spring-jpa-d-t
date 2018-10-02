@@ -27,7 +27,7 @@
 #end
 
 import ${pack_entity}.$entityClass;
-import ${pack_service}.$serviceClass;
+import ${pack_service}.$serviceInterface;
 
 import java.util.List;
 
@@ -55,7 +55,7 @@ public class $controllerClass {
 	private static final String NOT_FOUND ="$entityClass not found";
 
 	@Autowired
-	private $serviceClass ${serviceInstance};
+	private $serviceInterface ${serviceInstance};
 
 	@RequestMapping(value = "/",
 			produces = { MediaType.APPLICATION_JSON_VALUE })
@@ -85,8 +85,8 @@ public class $controllerClass {
 		}
 	}
 
-	@PutMapping(value = "$mappingPath", consumes = "application/json")
-	public $entityClass update($pathVariable, @RequestBody $entityClass $entityInstance) {
+	@PutMapping(consumes = "application/json")
+	public $entityClass update(@RequestBody $entityClass $entityInstance) {
 		return ${serviceInstance}.update($entityInstance);
 	}
 
@@ -112,4 +112,5 @@ public class $controllerClass {
 	}
 
 }
+
 
