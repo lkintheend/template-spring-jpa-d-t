@@ -7,12 +7,16 @@
 
 import ${pack_entity}.${entityClass};
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface $serviceInterface {
 
 	$entityClass getOne($keyArgsListWrapperType);
 
 	List<$entityClass> findAll();
+
+	Page<$entityClass> findAll(Pageable pageable);
 
 	Boolean delete($keyArgsListWrapperType);
 
@@ -21,5 +25,6 @@ public interface $serviceInterface {
 	$entityClass update($entityClass $entityInstance);
 
 	Boolean exist($entityClass $entityInstance);
+
 }
 
